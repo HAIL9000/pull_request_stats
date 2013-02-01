@@ -49,34 +49,49 @@ var chart = d3.box()
     .width(width)
     .height(height);
 
-d3.json("https://api.github.com/repos/puppetlabs/puppet/pulls?state=closed&per_page=100", function(error, pulls) {
-  var data = [];
-  var week_data = [];
+var repos = ["puppetlabs/puppet", "puppetlabs/facter"];
+var mycount = 0;
 
-  pulls.forEach(function(x) {
-    var created_at = new Date(Date.parse(x.created_at));
-    var closed_at = new Date(Date.parse(x.closed_at));
-    var cycle_time = Math.round((closed_at - created_at)/1000/60/60);
-    var year_week = closed_at.getFullYear() * 100 + closed_at.getWeek();
-    var current = new Date();
-    var current_year_week = current.getFullYear() * 100 + current.getWeek();
-    if (current_year_week - year_week < 5) {
-      var e = year_week,
-          s = cycle_time,
-          d = week_data[e];
-      if (!d) d = week_data[e] = [s];
-      else d.push(s);
-      if (s > max) max = s;
-      if (s < min) min = s;
+var data = [];
+var week_data = [];
+var current = new Date();
+
+repos.forEach(function(r) {
+  d3.json("https://api.github.com/repos/" + r + "/pulls?state=closed&per_page=100", function(error, pulls) {
+    pulls.forEach(function(x) {
+      var created_at = new Date(Date.parse(x.created_at));
+      var closed_at = new Date(Date.parse(x.closed_at));
+      var cycle_time = Math.round((closed_at - created_at)/1000/60/60);
+      var year_week = closed_at.getFullYear() * 100 + closed_at.getWeek();
+      var current_year_week = current.getFullYear() * 100 + current.getWeek();
+
+      if (current_year_week - year_week < 5) {
+        var e = year_week,
+            s = cycle_time,
+            d = week_data[e];
+        if (!d) d = week_data[e] = [s];
+        else d.push(s);
+        if (s > max) max = s;
+        if (s < min) min = s;
+      }
+    });
+
+    mycount++;
+
+    if (mycount == repos.length) {
+      sort_and_populate();
     }
+
   });
+});
 
-  chart.domain([min, max]);
-
+function sort_and_populate() {
   var i = 0;
   Object.keys(week_data).sort().forEach(function(x) {
     data[i++] = week_data[x];
   });
+
+  chart.domain([min, max]);
 
   var svg = d3.select("body").selectAll("svg")
       .data(data)
@@ -88,8 +103,7 @@ d3.json("https://api.github.com/repos/puppetlabs/puppet/pulls?state=closed&per_p
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
       .call(chart);
   svg.call(chart);
-
-});
+};
 
 function randomize(d) {
   if (!d.randomizer) d.randomizer = randomizer(d);
